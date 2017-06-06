@@ -1,32 +1,69 @@
 /**
  * Created by komar on 6/5/2017.
  */
-function Sprite(img) {
+function Drawable(img, speed) {
 	this.x = 10;
 	this.y = 10;
-	this.speed = 10;
-	this.sprite = new Image();
-	this.sprite.src = img;
+	this.speed = speed;
+	this.sprite = new SpriteSheet(img);
 }
-function Player(img, attack) {
-	Sprite.call(this,img);
+function SpriteSheet(img, frameWidth, frameHeight, frameSpeed, start, end) {
+	this.x = 10;
+	this.y = 10;
+	this.image = new Image();
+	this.image.src = img;
+	this.frameWidth = frameWidth;
+	this.frameHeight = frameHeight;
+	var self = this;
+	self.image.onload = function() {
+		self.frames = Math.floor(self.image.width / self.frameWidth);
+	};
+	this.sequence = [];
+	this.current = 0;
+	this.counter = 0;
+
+	for(f = start; f<=end; f++){
+		this.sequence.push(f);
+	}
+	this.update = function () {
+		if(this.counter == (frameSpeed - 1)){
+			this.current = (this.current + 1) % this.sequence.length;
+		}
+		this.counter = (this.counter + 1) % frameSpeed;
+	};
+	this.draw = function (ctx) {
+		var row = Math.floor(this.sequence[this.current] / this.frames);
+		var col = Math.floor(this.sequence[this.current] % this.frames);
+		ctx.drawImage(
+			this.image,
+			col * this.frameWidth, row * this.frameHeight,
+			this.frameWidth, this.frameHeight,
+			this.x, this.y,
+			this.frameWidth, this.frameHeight);
+	}
+}
+function Player(img, attack, speed) {
+	Drawable.call(this,img, speed);
+	this.sprite = new SpriteSheet(img, 32, 48,10,0,3);
 	this.attack = attack;
+	this.active = false;
 	this.move = function () {
 		if(Key_Status.w){
-			if(this.y > 0) {
-				this.y -= this.speed;
+			if(this.sprite.y > 0) {
+				this.sprite.y -= this.speed;
 			}
 		}if(Key_Status.a){
-			if(this.x > 0) {
-				this.x -= this.speed;
+			if(this.sprite.x > 0) {
+				this.sprite.x -= this.speed;
 			}
 		}if(Key_Status.s){
-			if(this.y <= this.canvas.height - 100){
-				this.y += this.speed;
+			this.sprite.update();
+			if(this.sprite.y <= this.canvas.height - 100){
+				this.sprite.y += this.speed;
 			}
 		}if(Key_Status.d){
-			if(this.x <= this.canvas.width - 100) {
-				this.x += this.speed;
+			if(this.sprite.x <= this.canvas.width - 100) {
+				this.sprite.x += this.speed;
 			}
 		}
 		if(Key_Status.space){
@@ -37,21 +74,36 @@ function Player(img, attack) {
 				this.attack.spawn(this.x+30, this.y+30, 10);
 			}
 		}
+		this.sprite.draw(this.context);
 	};
 	this.draw = function () {
-		this.context.drawImage(this.sprite, this.x, this.y);
 		this.move();
 		if(this.attack instanceof MeleeAttack) {
 			this.attack.spawn(this.x+80, this.y, 5);
-		}else{
+		}
+		if(this.attack instanceof RangedAttack){
 			if(this.attack.active){
 				this.attack.draw();
 			}
 		}
 	};
 }
+function Enemey(img, attack) {
+	Drawable.call(this, img);
+	this.attack = attack;
+	this.active = false;
+	this.x = Math.floor(Math.random() * this.canvas.width);
+	this.y = Math.floor(Math.random() * this.canvas.height);
+	this.move = function(){
+
+	};
+	this.draw = function(){
+		this.move();
+		this.context.drawImage(this.sprite, this.x,this.y);
+	};
+}
 function Attack(img) {
-	Sprite.call(this,img);
+	Drawable.call(this,img);
 	this.active = false;
 	this.spawn = function (x,y,speed) {
 		this.x = x;
@@ -107,10 +159,11 @@ function RangedAttack(img){
 }
 function MeleeAttack(img) {
 	Attack.call(this, img);
-	this.draw = function (x,y) {
-		this.x = x;
-		this.y = y;
+	this.draw = function () {
+		this.context.translate(this.x,this.y);
 		this.context.rotate(90*Math.PI/180);
+		this.context.translate(-this.x +70, -this.y -120);
+		this.context.restore();
 	};
 }
 function Game() {
@@ -119,20 +172,36 @@ function Game() {
 		this.ctx = this.canvas.getContext('2d');
 		Player.prototype.context = this.ctx;
 		Player.prototype.canvas = this.canvas;
+		Enemey.prototype.context = this.ctx;
+		Enemey.prototype.canvas = this.canvas;
 		Attack.prototype.context = this.ctx;
 		Attack.prototype.canvas = this.canvas;
 		RangedAttack.prototype.canvas = this.canvas;
 		RangedAttack.prototype.context = this.ctx;
 		MeleeAttack.prototype.canvas = this.canvas;
 		MeleeAttack.prototype.context = this.ctx;
-		this.wizard = new Player("img/Wizard.png", new RangedAttack("img/Ranged.png"));
-		this.knight = new Player("img/Knight.png", new MeleeAttack("img/Sword.png"), true);
-		this.start = function() {
-			animate();
-		};
+		this.wizard = new Player("img/Wizard.png", new RangedAttack("img/Ranged.png"), 2);
+		this.knight = new Player("img/Knight.png", new MeleeAttack("img/Sword.png"), 2);
+		this.characters = [this.wizard, this.knight];
 		this.animate = function () {
-			// this.wizard.draw();
-			this.knight.draw();
+			for(i = 0; i<this.characters.length; i++){
+				var player = this.characters[i];
+				if(player.active){
+					player.draw();
+				}
+			}
+		};
+		this.switch = function(character){
+			switch (character){
+				case 0:
+					this.wizard.active = true;
+					this.knight.active = false;
+					break;
+				case 1:
+					this.wizard.active = false;
+					this.knight.active = true;
+					break;
+			}
 		};
 		this.clear = function () {
 			this.canvas.width = this.canvas.width;
@@ -175,7 +244,6 @@ function mousePosition (e) {
 	mouse.x = (e.clientX - bounds.left);
 	mouse.y = (e.clientY - bounds.top);
 };
-RPG.start();
 RPG.canvas.addEventListener('mousemove',mousePosition, false);
 function animate() {
 	RPG.clear();
