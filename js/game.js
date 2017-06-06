@@ -21,23 +21,32 @@ function Player(img, attack) {
 				this.x -= this.speed;
 			}
 		}if(Key_Status.s){
-			if(this.y <= this.canvas.height - 70){
+			if(this.y <= this.canvas.height - 100){
 				this.y += this.speed;
 			}
 		}if(Key_Status.d){
-			if(this.x <= this.canvas.width - 60) {
+			if(this.x <= this.canvas.width - 100) {
 				this.x += this.speed;
 			}
 		}
 		if(Key_Status.space){
-			this.attack.spawn(this.x+30, this.y+30, 10);
+			if(this.attack instanceof MeleeAttack){
+				this.attack.draw();
+			}
+			if(this.attack instanceof  RangedAttack){
+				this.attack.spawn(this.x+30, this.y+30, 10);
+			}
 		}
 	};
 	this.draw = function () {
 		this.context.drawImage(this.sprite, this.x, this.y);
 		this.move();
-		if(this.attack.active){
-			this.attack.draw();
+		if(this.attack instanceof MeleeAttack) {
+			this.attack.spawn(this.x+80, this.y, 5);
+		}else{
+			if(this.attack.active){
+				this.attack.draw();
+			}
 		}
 	};
 }
@@ -49,6 +58,7 @@ function Attack(img) {
 		this.y = y;
 		this.speed = speed;
 		this.active = true;
+		this.context.drawImage(this.sprite, this.x, this.y);
 	};
 	this.clear = function() {
 		this.x = 0;
@@ -61,22 +71,46 @@ function RangedAttack(img){
 	Attack.call(this, img);
 	this.draw = function () {
 		if(this.x < mouse.x){
-			this.x += this.speed;
+			if(this.x + this.speed < mouse.x) {
+				this.x += this.speed;
+			}else{
+				this.x = mouse.x;
+			}
 		}
 		if(this.x > mouse.x){
-			this.x -= this.speed;
+			if(this.x - this.speed > mouse.x) {
+				this.x -= this.speed;
+			}else{
+				this.x = mouse.x;
+			}
 		}
 		if(this.y < mouse.y){
-			this.y += this.speed;
+			if(this.y + this.speed < mouse.y) {
+				this.y += this.speed;
+			}else{
+				this.y = mouse.y;
+			}
 		}
 		if(this.y > mouse.y){
-			this.y -= this.speed;
+			if(this.y - this.speed > mouse.y){
+				this.y -= this.speed;
+			}else{
+				this.y = mouse.y;
+			}
 		}
 		if(this.x === mouse.x && this.y === mouse.y){
 			this.active = false;
 		}else{
 			this.context.drawImage(this.sprite, this.x, this.y);
 		}
+	};
+}
+function MeleeAttack(img) {
+	Attack.call(this, img);
+	this.draw = function (x,y) {
+		this.x = x;
+		this.y = y;
+		this.context.rotate(90*Math.PI/180);
 	};
 }
 function Game() {
@@ -89,9 +123,16 @@ function Game() {
 		Attack.prototype.canvas = this.canvas;
 		RangedAttack.prototype.canvas = this.canvas;
 		RangedAttack.prototype.context = this.ctx;
-		this.wizard = new Player("img/Wizard_Male.png", new RangedAttack("img/Fireball-powerup.png"));
+		MeleeAttack.prototype.canvas = this.canvas;
+		MeleeAttack.prototype.context = this.ctx;
+		this.wizard = new Player("img/Wizard.png", new RangedAttack("img/Ranged.png"));
+		this.knight = new Player("img/Knight.png", new MeleeAttack("img/Sword.png"), true);
 		this.start = function() {
 			animate();
+		};
+		this.animate = function () {
+			// this.wizard.draw();
+			this.knight.draw();
 		};
 		this.clear = function () {
 			this.canvas.width = this.canvas.width;
@@ -138,6 +179,6 @@ RPG.start();
 RPG.canvas.addEventListener('mousemove',mousePosition, false);
 function animate() {
 	RPG.clear();
-	RPG.wizard.draw();
+	RPG.animate();
 }
 setInterval(animate, 10);
