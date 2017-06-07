@@ -7,13 +7,26 @@ function Drawable(img, speed) {
 	this.speed = speed;
 	this.sprite = new SpriteSheet(img);
 }
-function SpriteSheet(img, frameWidth, frameHeight, frameSpeed, start, end) {
+function SpriteSheet(img, frameWidth, frameHeight, frameSpeed) {
 	this.x = 10;
 	this.y = 10;
 	this.image = new Image();
 	this.image.src = img;
 	this.frameWidth = frameWidth;
 	this.frameHeight = frameHeight;
+	this.down = function() {
+		this.anim = [0, 3];
+	};
+	this.left = function(){
+		this.anim = [4,7];
+	};
+	this.right = function() {
+		this.anim = [8, 11];
+	};
+	this.up = function() {
+		this.anim = [12, 15];
+	};
+	this.anim = [0,0];
 	var self = this;
 	self.image.onload = function() {
 		self.frames = Math.floor(self.image.width / self.frameWidth);
@@ -21,11 +34,11 @@ function SpriteSheet(img, frameWidth, frameHeight, frameSpeed, start, end) {
 	this.sequence = [];
 	this.current = 0;
 	this.counter = 0;
-
-	for(f = start; f<=end; f++){
-		this.sequence.push(f);
-	}
 	this.update = function () {
+		this.sequence = [];
+		for(f = this.anim[0]; f<=this.anim[1]; f++){
+			this.sequence.push(f);
+		}
 		if(this.counter == (frameSpeed - 1)){
 			this.current = (this.current + 1) % this.sequence.length;
 		}
@@ -42,30 +55,39 @@ function SpriteSheet(img, frameWidth, frameHeight, frameSpeed, start, end) {
 			this.frameWidth, this.frameHeight);
 	}
 }
-function Player(img, attack, speed) {
+function Player(img, attack, speed, spriteWidth, spriteHeight){
 	Drawable.call(this,img, speed);
-	this.sprite = new SpriteSheet(img, 32, 48,10,0,3);
+	this.sprite = new SpriteSheet(img, spriteWidth, spriteHeight,10);
 	this.attack = attack;
 	this.active = false;
 	this.move = function () {
 		if(Key_Status.w){
+			this.sprite.up();
+			this.sprite.update();
 			if(this.sprite.y > 0) {
 				this.sprite.y -= this.speed;
 			}
 		}if(Key_Status.a){
+			this.sprite.left();
+			this.sprite.update();
 			if(this.sprite.x > 0) {
 				this.sprite.x -= this.speed;
 			}
 		}if(Key_Status.s){
+			this.sprite.down();
 			this.sprite.update();
 			if(this.sprite.y <= this.canvas.height - 100){
 				this.sprite.y += this.speed;
 			}
 		}if(Key_Status.d){
+			this.sprite.right();
+			this.sprite.update();
 			if(this.sprite.x <= this.canvas.width - 100) {
 				this.sprite.x += this.speed;
 			}
 		}
+		this.x = this.sprite.x;
+		this.y = this.sprite.y;
 		if(Key_Status.space){
 			if(this.attack instanceof MeleeAttack){
 				this.attack.draw();
@@ -79,7 +101,7 @@ function Player(img, attack, speed) {
 	this.draw = function () {
 		this.move();
 		if(this.attack instanceof MeleeAttack) {
-			this.attack.spawn(this.x+80, this.y, 5);
+			this.attack.spawn(this.x, this.y, 5);
 		}
 		if(this.attack instanceof RangedAttack){
 			if(this.attack.active){
@@ -110,7 +132,7 @@ function Attack(img) {
 		this.y = y;
 		this.speed = speed;
 		this.active = true;
-		this.context.drawImage(this.sprite, this.x, this.y);
+		this.context.drawImage(this.sprite.image, this.x, this.y);
 	};
 	this.clear = function() {
 		this.x = 0;
@@ -153,17 +175,13 @@ function RangedAttack(img){
 		if(this.x === mouse.x && this.y === mouse.y){
 			this.active = false;
 		}else{
-			this.context.drawImage(this.sprite, this.x, this.y);
+			this.context.drawImage(this.sprite.image, this.x, this.y);
 		}
 	};
 }
 function MeleeAttack(img) {
 	Attack.call(this, img);
 	this.draw = function () {
-		this.context.translate(this.x,this.y);
-		this.context.rotate(90*Math.PI/180);
-		this.context.translate(-this.x +70, -this.y -120);
-		this.context.restore();
 	};
 }
 function Game() {
@@ -180,8 +198,8 @@ function Game() {
 		RangedAttack.prototype.context = this.ctx;
 		MeleeAttack.prototype.canvas = this.canvas;
 		MeleeAttack.prototype.context = this.ctx;
-		this.wizard = new Player("img/Wizard.png", new RangedAttack("img/Ranged.png"), 2);
-		this.knight = new Player("img/Knight.png", new MeleeAttack("img/Sword.png"), 2);
+		this.wizard = new Player("img/Wizard.png", new RangedAttack("img/Ranged.png"), 2, 32, 48);
+		this.knight = new Player("img/Knight.png", new MeleeAttack(""), 2,32,48);
 		this.characters = [this.wizard, this.knight];
 		this.animate = function () {
 			for(i = 0; i<this.characters.length; i++){
